@@ -1,10 +1,8 @@
-
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 -- Load the Rayfield Library
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
 local Window = Rayfield:CreateWindow({
     Name = "Arise Crossover Macro Test",
     Icon = 0, -- No icon in the top bar
@@ -26,13 +24,159 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
--- main
-local MainTab = Window:CreateTab("Main", 4483362458) 
-
+-- Main tab
+local MainTab = Window:CreateTab("Main", 4483362458)
 MainTab:CreateLabel("Arise Crossover Macro Test")
 
--- make sure visible
+-- Teleport tab
+local TeleportTab = Window:CreateTab("Teleport", 4483362458)
+
+-- Get all the islands (worlds) from the "__World" folder
+local worldFolder = game.Workspace.__Main.__World
+local worldNames = {}
+
+-- Safe print function that handles tables
+local function safePrint(message, value)
+    if type(value) == "table" then
+        print(message .. " (Table with " .. #value .. " items)")
+    elseif value == nil then
+        print(message .. " (nil)")
+    else
+        print(message .. tostring(value))
+    end
+end
+
+-- Populate the world names into the table and log them
+for _, world in pairs(worldFolder:GetChildren()) do
+    if world:IsA("Model") then
+        table.insert(worldNames, world.Name)
+        print("Found world: " .. world.Name)  -- Log the world names to check for any discrepancies
+    end
+end
+
+-- Create a dropdown for selecting an island
+local IslandDropdown = TeleportTab:CreateDropdown({
+    Name = "Choose Island",
+    Options = worldNames,
+    CurrentOption = (#worldNames > 0) and worldNames[1] or "", -- Safely handle empty worldNames
+    Flag = "IslandDropdown",
+    Callback = function(selectedIsland)
+        -- Check if selectedIsland is valid before saving it
+        if selectedIsland and type(selectedIsland) == "string" then
+            _G.selectedIsland = selectedIsland
+            print("Selected island: " .. selectedIsland)
+        else
+            if type(selectedIsland) == "table" then
+                print("Warning: Selected island is a table, not a string")
+                -- If it's a table with a single value, try to use that
+                if #selectedIsland == 1 and type(selectedIsland[1]) == "string" then
+                    _G.selectedIsland = selectedIsland[1]
+                    print("Used first value in table: " .. _G.selectedIsland)
+                end
+            else
+                print("Warning: Invalid island selection")
+            end
+        end
+    end
+})
+
+-- Create a teleport button
+local TeleportButton = TeleportTab:CreateButton({
+    Name = "Teleport",
+    Callback = function()
+        -- Check if an island has been selected
+        if _G.selectedIsland and type(_G.selectedIsland) == "string" then
+            -- Debug print to check the selected island name
+            print("Attempting to teleport to: " .. _G.selectedIsland)
+            
+            -- Directly loop through all children to find the matching island
+            local selectedWorld = nil
+            for _, world in pairs(worldFolder:GetChildren()) do
+                if world:IsA("Model") and world.Name == _G.selectedIsland then
+                    selectedWorld = world
+                    print("Found world match: " .. world.Name)
+                    break
+                end
+            end
+            
+            if selectedWorld then
+                -- Look for the "MainPart" inside the selected world model
+                local mainPart = selectedWorld:FindFirstChild("MainPart")
+                if mainPart then
+                    -- Log if we found the MainPart
+                    print("Found MainPart in " .. _G.selectedIsland)
+                    -- Make sure the player character is loaded
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        -- Teleport player to the MainPart's CFrame
+                        player.Character:SetPrimaryPartCFrame(mainPart.CFrame)
+                        print("Teleported to MainPart!")
+                    else
+                        warn("Player character not fully loaded!")
+                    end
+                else
+                    warn("No MainPart found for " .. _G.selectedIsland)
+                    -- Try to find a different part to teleport to as fallback
+                    local fallbackPart = selectedWorld:FindFirstChildWhichIsA("BasePart")
+                    if fallbackPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character:SetPrimaryPartCFrame(fallbackPart.CFrame)
+                        print("Teleported to fallback part instead!")
+                    else
+                        warn("No suitable part found for teleportation!")
+                    end
+                end
+            else
+                warn("Selected island '" .. _G.selectedIsland .. "' not found in world folder!")
+                -- Print all available worlds for debugging
+                print("Available worlds:")
+                for _, world in pairs(worldFolder:GetChildren()) do
+                    if world:IsA("Model") then
+                        print("- " .. world.Name)
+                    end
+                end
+            end
+        else
+            -- Handle the case where selectedIsland might be a table
+            if type(_G.selectedIsland) == "table" then
+                print("Error: Selected island is a table, not a string")
+                print("Table contents:")
+                for i, v in pairs(_G.selectedIsland) do
+                    print("  " .. tostring(i) .. ": " .. tostring(v))
+                end
+            else
+                warn("Please select an island to teleport!")
+            end
+        end
+    end
+})
+
+-- Add a refresh button to refresh the world list
+local RefreshButton = TeleportTab:CreateButton({
+    Name = "Refresh Island List",
+    Callback = function()
+        worldNames = {}
+        -- Re-populate the world names into the table
+        for _, world in pairs(worldFolder:GetChildren()) do
+            if world:IsA("Model") then
+                table.insert(worldNames, world.Name)
+                print("Refreshed world list - Found: " .. world.Name)
+            end
+        end
+        
+        -- Safely update the dropdown with new options
+        if #worldNames > 0 then
+            IslandDropdown:Refresh(worldNames, worldNames[1])
+            print("Island list refreshed!")
+        else
+            IslandDropdown:Refresh({}, "")
+            print("Island list refreshed, but no islands were found!")
+        end
+    end
+})
+
+-- Make sure the Rayfield UI is visible
 local rayfieldGui = game.CoreGui:FindFirstChild("Rayfield") or player:WaitForChild("PlayerGui"):FindFirstChild("Rayfield")
 if rayfieldGui then
     rayfieldGui.Enabled = true
 end
+
+print("Script loaded successfully!")
