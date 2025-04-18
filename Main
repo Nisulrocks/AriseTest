@@ -1,1 +1,38 @@
 
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Load the Rayfield Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Arise Crossover Macro Test",
+    Icon = 0, -- No icon in the top bar
+    LoadingTitle = "Arise Crossover Macro Test",
+    LoadingSubtitle = "by Nisulrocks",
+    Theme = "Default", -- You can customize the theme as needed
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "AriseCrossover", -- Custom folder name
+        FileName = "AriseCrossoverConfig"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = true
+    },
+    KeySystem = false
+})
+
+-- main
+local MainTab = Window:CreateTab("Main", 4483362458) 
+
+MainTab:CreateLabel("Arise Crossover Macro Test")
+
+-- make sure visible
+local rayfieldGui = game.CoreGui:FindFirstChild("Rayfield") or player:WaitForChild("PlayerGui"):FindFirstChild("Rayfield")
+if rayfieldGui then
+    rayfieldGui.Enabled = true
+end
