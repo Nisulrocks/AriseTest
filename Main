@@ -35,17 +35,6 @@ local TeleportTab = Window:CreateTab("Teleport", 4483362458)
 local worldFolder = game.Workspace.__Main.__World
 local worldNames = {}
 
--- Safe print function that handles tables
-local function safePrint(message, value)
-    if type(value) == "table" then
-        print(message .. " (Table with " .. #value .. " items)")
-    elseif value == nil then
-        print(message .. " (nil)")
-    else
-        print(message .. tostring(value))
-    end
-end
-
 -- Populate the world names into the table and log them
 for _, world in pairs(worldFolder:GetChildren()) do
     if world:IsA("Model") then
@@ -102,23 +91,45 @@ local TeleportButton = TeleportTab:CreateButton({
             if selectedWorld then
                 -- Look for the "MainPart" inside the selected world model
                 local mainPart = selectedWorld:FindFirstChild("MainPart")
-                if mainPart then
-                    -- Log if we found the MainPart
+                if mainPart and mainPart:IsA("BasePart") then
+                    -- Debug the MainPart
                     print("Found MainPart in " .. _G.selectedIsland)
+                    print("MainPart type: " .. mainPart.ClassName)
+                    
                     -- Make sure the player character is loaded
                     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        -- Teleport player to the MainPart's CFrame
-                        player.Character:SetPrimaryPartCFrame(mainPart.CFrame)
-                        print("Teleported to MainPart!")
+                        -- Check if the mainPart has a CFrame property
+                        if mainPart.CFrame then
+                            -- Teleport player to the MainPart's CFrame
+                            player.Character.HumanoidRootPart.CFrame = mainPart.CFrame + Vector3.new(0, 5, 0) -- Add a small offset upward
+                            print("Teleported to MainPart!")
+                        else
+                            warn("MainPart does not have a CFrame property!")
+                        end
                     else
                         warn("Player character not fully loaded!")
                     end
                 else
-                    warn("No MainPart found for " .. _G.selectedIsland)
+                    warn("No suitable MainPart found for " .. _G.selectedIsland)
                     -- Try to find a different part to teleport to as fallback
-                    local fallbackPart = selectedWorld:FindFirstChildWhichIsA("BasePart")
+                    local fallbackPart = nil
+                    
+                    -- First try to find any BasePart directly in the world
+                    fallbackPart = selectedWorld:FindFirstChildWhichIsA("BasePart")
+                    
+                    -- If no direct BasePart was found, search deeper
+                    if not fallbackPart then
+                        for _, child in pairs(selectedWorld:GetDescendants()) do
+                            if child:IsA("BasePart") then
+                                fallbackPart = child
+                                print("Found fallback part: " .. child:GetFullName())
+                                break
+                            end
+                        end
+                    end
+                    
                     if fallbackPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        player.Character:SetPrimaryPartCFrame(fallbackPart.CFrame)
+                        player.Character.HumanoidRootPart.CFrame = fallbackPart.CFrame + Vector3.new(0, 5, 0) -- Add a small offset upward
                         print("Teleported to fallback part instead!")
                     else
                         warn("No suitable part found for teleportation!")
