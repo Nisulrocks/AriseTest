@@ -69,7 +69,7 @@ local IslandDropdown = TeleportTab:CreateDropdown({
     end
 })
 
--- Create a teleport button
+-- Create a teleport button with a simplified approach
 local TeleportButton = TeleportTab:CreateButton({
     Name = "Teleport",
     Callback = function()
@@ -78,62 +78,76 @@ local TeleportButton = TeleportTab:CreateButton({
             -- Debug print to check the selected island name
             print("Attempting to teleport to: " .. _G.selectedIsland)
             
-            -- Directly loop through all children to find the matching island
-            local selectedWorld = nil
-            for _, world in pairs(worldFolder:GetChildren()) do
-                if world:IsA("Model") and world.Name == _G.selectedIsland then
-                    selectedWorld = world
-                    print("Found world match: " .. world.Name)
-                    break
-                end
-            end
+            -- Find the selected world
+            local selectedWorld = worldFolder:FindFirstChild(_G.selectedIsland)
             
-            if selectedWorld then
-                -- Look for the "MainPart" inside the selected world model
-                local mainPart = selectedWorld:FindFirstChild("MainPart")
-                if mainPart and mainPart:IsA("BasePart") then
-                    -- Debug the MainPart
-                    print("Found MainPart in " .. _G.selectedIsland)
-                    print("MainPart type: " .. mainPart.ClassName)
+            if selectedWorld and selectedWorld:IsA("Model") then
+                print("Found world model: " .. selectedWorld.Name)
+                
+                -- Make sure the player character is loaded
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Get position to teleport to
+                    local teleportPosition
                     
-                    -- Make sure the player character is loaded
-                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        -- Check if the mainPart has a CFrame property
-                        if mainPart.CFrame then
-                            -- Teleport player to the MainPart's CFrame
-                            player.Character.HumanoidRootPart.CFrame = mainPart.CFrame + Vector3.new(0, 5, 0) -- Add a small offset upward
-                            print("Teleported to MainPart!")
-                        else
-                            warn("MainPart does not have a CFrame property!")
-                        end
+                    -- Try to get the world's position using different methods
+                    if selectedWorld:IsA("BasePart") then
+                        -- If the world itself is a BasePart, use its position
+                        teleportPosition = selectedWorld.Position + Vector3.new(0, 5, 0)
+                    elseif selectedWorld.PrimaryPart then
+                        -- If the world has a PrimaryPart, use its position
+                        teleportPosition = selectedWorld.PrimaryPart.Position + Vector3.new(0, 5, 0)
                     else
-                        warn("Player character not fully loaded!")
-                    end
-                else
-                    warn("No suitable MainPart found for " .. _G.selectedIsland)
-                    -- Try to find a different part to teleport to as fallback
-                    local fallbackPart = nil
-                    
-                    -- First try to find any BasePart directly in the world
-                    fallbackPart = selectedWorld:FindFirstChildWhichIsA("BasePart")
-                    
-                    -- If no direct BasePart was found, search deeper
-                    if not fallbackPart then
-                        for _, child in pairs(selectedWorld:GetDescendants()) do
-                            if child:IsA("BasePart") then
-                                fallbackPart = child
-                                print("Found fallback part: " .. child:GetFullName())
-                                break
+                        -- If no direct position, calculate the center of the model
+                        local minPos, maxPos
+                        
+                        -- Find any parts in the model to calculate bounds
+                        for _, part in pairs(selectedWorld:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                if not minPos then
+                                    minPos = part.Position
+                                    maxPos = part.Position
+                                else
+                                    -- Update min/max for each axis
+                                    minPos = Vector3.new(
+                                        math.min(minPos.X, part.Position.X),
+                                        math.min(minPos.Y, part.Position.Y),
+                                        math.min(minPos.Z, part.Position.Z)
+                                    )
+                                    maxPos = Vector3.new(
+                                        math.max(maxPos.X, part.Position.X),
+                                        math.max(maxPos.Y, part.Position.Y),
+                                        math.max(maxPos.Z, part.Position.Z)
+                                    )
+                                end
+                            end
+                        end
+                        
+                        if minPos and maxPos then
+                            -- Calculate center position and add slight Y offset
+                            teleportPosition = minPos:Lerp(maxPos, 0.5) + Vector3.new(0, 10, 0)
+                        else
+                            -- Fallback: Find first BasePart and use its position
+                            local anyPart = selectedWorld:FindFirstDescendantWhichIsA("BasePart")
+                            if anyPart then
+                                teleportPosition = anyPart.Position + Vector3.new(0, 5, 0)
+                            else
+                                warn("Could not find any parts in the world to teleport to!")
+                                return
                             end
                         end
                     end
                     
-                    if fallbackPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        player.Character.HumanoidRootPart.CFrame = fallbackPart.CFrame + Vector3.new(0, 5, 0) -- Add a small offset upward
-                        print("Teleported to fallback part instead!")
+                    -- Teleport the player
+                    if teleportPosition then
+                        -- Create a CFrame at the teleport position
+                        local teleportCFrame = CFrame.new(teleportPosition)
+                        player.Character.HumanoidRootPart.CFrame = teleportCFrame
+                        print("Teleported to world model!")
                     else
-                        warn("No suitable part found for teleportation!")
+                        warn("Failed to determine teleport position!")
                     end
+                else
+                    warn("Player character not fully loaded!")
                 end
             else
                 warn("Selected island '" .. _G.selectedIsland .. "' not found in world folder!")
@@ -146,16 +160,7 @@ local TeleportButton = TeleportTab:CreateButton({
                 end
             end
         else
-            -- Handle the case where selectedIsland might be a table
-            if type(_G.selectedIsland) == "table" then
-                print("Error: Selected island is a table, not a string")
-                print("Table contents:")
-                for i, v in pairs(_G.selectedIsland) do
-                    print("  " .. tostring(i) .. ": " .. tostring(v))
-                end
-            else
-                warn("Please select an island to teleport!")
-            end
+            warn("Please select an island to teleport!")
         end
     end
 })
